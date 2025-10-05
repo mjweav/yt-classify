@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>YT-Classify Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{--fg:#111;--muted:#666;--bg:#fff;--card:#f7f7f8;--chip:#eef2f6;}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--fg);margin:0;}
+  header{position:sticky;top:0;z-index:10;background:linear-gradient(#fff,rgba(255,255,255,.9));backdrop-filter:saturate(1.2) blur(6px);border-bottom:1px solid #eee;padding:12px 16px;}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input[type=search]{padding:8px 10px;border:1px solid #ddd;border-radius:8px;min-width:240px}
+  select,button{padding:8px 10px;border:1px solid #ddd;border-radius:8px;background:#fff}
+  main{padding:16px;max-width:1100px;margin:0 auto}
+  .summary{font-size:14px;color:var(--muted);margin-bottom:12px}
+  .panel{background:var(--card);border:1px solid #eee;border-radius:12px;margin:12px 0;padding:12px 14px}
+  .panel h2{font-size:16px;margin:0 0 10px 0;display:flex;gap:8px;align-items:center}
+  .meta{color:var(--muted);font-weight:500}
+  .cluster-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px dashed #e6e6e6}
+  .cluster-row:first-of-type{border-top:0}
+  .label-chip{background:var(--chip);padding:6px 10px;border-radius:999px;font-size:13px;white-space:nowrap;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+  .count{color:var(--muted)}
+  .bstrip{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .bubble{width:10px;height:10px;border-radius:50%;border:1px solid #cbd5e1;background:#e2e8f0;display:inline-block}
+  .bubble[data-big="1"]{border-color:#94a3b8;background:#cbd5e1}
+  details{margin-top:6px}
+  summary{cursor:pointer;color:#0b6;user-select:none}
+  .items{padding:6px 0 0 4px}
+  .item{padding:6px 0;border-top:1px solid #eee;font-size:14px}
+  .item small{display:block;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="controls">
+    <input id="q" type="search" placeholder="Search titles/descriptions…" />
+    <label>Sort: 
+      <select id="sort">
+        <option value="count">by count</option>
+        <option value="label">by label</option>
+      </select>
+    </label>
+    <label><input id="snips" type="checkbox" checked /> show snippets</label>
+  </div>
+</header>
+<main>
+  <div id="summary" class="summary"></div>
+  <div id="root"></div>
+</main>
+<script>
+const fmt = n => n.toLocaleString();
+const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+const esc = s => (s||"").replace(/[&<>]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+async function load() {
+  try{
+    const res = await fetch('clusters.json'); // must be next to this file
+    const data = await res.json();
+    render(data);
+  }catch(e){
+    document.getElementById('root').innerHTML = '<p style="color:#900">Could not load clusters.json</p>';
+  }
+}
+function collectStats(data){
+  const umbrellas = data.umbrellas||[];
+  let total=0, subAssigned=0;
+  umbrellas.forEach(u=>{
+    u.clusters.forEach(c=>{
+      const n=c.items.length;
+      total += n;
+      if(!/Other/.test(c.label)) subAssigned += n;
+    });
+  });
+  const unclassified = (data.unclassified||[]).length;
+  return {total, subAssigned, unclassified, umbrellas: umbrellas.length};
+}
+function bubbleRadius(vc, min=10, max=26){
+  const vMax = window.__vcMax || 1;
+  const v = Math.sqrt(vc||0);
+  return Math.round(min + (max-min) * (v/Math.sqrt(vMax)));
+}
+function render(data){
+  // precompute vc max
+  let vcMax=1;
+  (data.umbrellas||[]).forEach(u=>u.clusters.forEach(c=>c.items.forEach(it=>{vcMax=Math.max(vcMax, it.videoCount||0)})));
+  window.__vcMax=vcMax;
+  const stats=collectStats(data);
+  const sEl = document.getElementById('summary');
+  sEl.textContent = `Umbrellas ${stats.umbrellas} • Channels ${fmt(stats.total)} • Sub-cluster coverage ${Math.round(100*stats.subAssigned/stats.total)||0}% • Unclassified ${fmt(stats.unclassified)}`;
+  const root = document.getElementById('root');
+  const q = document.getElementById('q');
+  const sortSel = document.getElementById('sort');
+  const snips = document.getElementById('snips');
+  function matches(text, needle){
+    return !needle || text.toLowerCase().includes(needle.toLowerCase());
+  }
+  function draw(){
+    const needle = q.value.trim().toLowerCase();
+    root.innerHTML = '';
+    (data.umbrellas||[]).forEach(u=>{
+      const panel = document.createElement('section');
+      panel.className='panel';
+      const header = document.createElement('h2');
+      const totalInUmb = u.clusters.reduce((s,c)=>s + c.items.length, 0);
+      const subCount = u.clusters.length;
+      header.innerHTML = `${esc(u.name)} <span class="meta">• ${fmt(totalInUmb)} channels • ${subCount} sub-clusters</span>`;
+      panel.appendChild(header);
+      // sort clusters
+      const clusters = u.clusters.slice();
+      clusters.sort((a,b)=> sortSel.value==='label' ? a.label.localeCompare(b.label) : (b.items.length - a.items.length));
+      clusters.forEach(c=>{
+        // filter items via search
+        const vis = c.items.filter(it=> matches(`${it.title||''} ${it.description||''}`, needle));
+        if (needle && vis.length===0) return;
+        const row = document.createElement('div'); row.className='cluster-row';
+        const lab = document.createElement('div'); lab.className='label-chip';
+        lab.innerHTML = `${esc(c.label)} <span class="count">(${fmt(vis.length)}/${fmt(c.items.length)})</span>`;
+        row.appendChild(lab);
+        const bstrip = document.createElement('div'); bstrip.className='bstrip';
+        const sample = vis.slice(0,14);
+        sample.forEach(it=>{
+          const b = document.createElement('div'); b.className='bubble';
+          const r = bubbleRadius(it.videoCount);
+          b.style.width = r+'px'; b.style.height = r+'px';
+          b.title = `${it.title||''} • vids:${it.videoCount||0}`;
+          b.dataset.big = (r>18?1:0);
+          bstrip.appendChild(b);
+        });
+        row.appendChild(bstrip);
+        const det = document.createElement('details');
+        const sum = document.createElement('summary'); sum.textContent = 'expand'; det.appendChild(sum);
+        const list = document.createElement('div'); list.className='items';
+        vis.forEach(it=>{
+          const el = document.createElement('div'); el.className='item';
+          const desc = (it.description||'').replace(/\s+/g,' ').slice(0,180)+( (it.description||'').length>180?'…':'' );
+          el.innerHTML = `<strong>${esc(it.title||'')}</strong> <span class="meta">• vids:${fmt(it.videoCount||0)}</span>` + (snips.checked?`<small>${esc(desc)}</small>`:'');
+          list.appendChild(el);
+        });
+        det.appendChild(list);
+        lab.addEventListener('click', ()=> det.open = !det.open);
+        panel.appendChild(row);
+        panel.appendChild(det);
+      });
+      if (!needle || panel.querySelector('.cluster-row')) root.appendChild(panel);
+    });
+    // unclassified
+    const unc = (data.unclassified||[]).filter(it=> matches(`${it.title||''} ${it.description||''}`, q.value.trim()));
+    if (unc.length){
+      const p = document.createElement('section'); p.className='panel';
+      const h = document.createElement('h2'); h.textContent = `Unclassified • ${fmt(unc.length)} channels`; p.appendChild(h);
+      const det = document.createElement('details'); const sum = document.createElement('summary'); sum.textContent='expand'; det.appendChild(sum);
+      const list = document.createElement('div'); list.className='items';
+      unc.forEach(it=>{
+        const d = (it.description||'').replace(/\s+/g,' ').slice(0,180)+((it.description||'').length>180?'…':'');
+        const el = document.createElement('div'); el.className='item';
+        el.innerHTML = `<strong>${esc(it.title||'')}</strong> <span class="meta">• vids:${fmt(it.videoCount||0)}</span>` + (snips.checked?`<small>${esc(d)}</small>`:'');
+        list.appendChild(el);
+      });
+      det.appendChild(list); p.appendChild(det); root.appendChild(p);
+    }
+  }
+  q.addEventListener('input', draw);
+  sortSel.addEventListener('change', draw);
+  snips.addEventListener('change', draw);
+  draw();
+}
+load();
+</script>
+</body>
+</html>

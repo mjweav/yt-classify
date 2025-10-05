@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT-Classify Results</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            color: #bdc3c7;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .control-group input, .control-group select {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            max-width: 400px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .summary-stats {
+            background: white;
+            margin: 2rem;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .umbrella-section {
+            background: white;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .umbrella-header {
+            background: #34495e;
+            color: white;
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .umbrella-header:hover {
+            background: #2c3e50;
+        }
+
+        .umbrella-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .umbrella-meta {
+            color: #ecf0f1;
+            font-size: 0.9rem;
+        }
+
+        .umbrella-content {
+            padding: 1.5rem;
+        }
+
+        .clusters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cluster-card {
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .cluster-header {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .cluster-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .cluster-meta {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .cluster-bubbles {
+            padding: 0.5rem 0;
+            display: flex;
+            gap: 0.3rem;
+            flex-wrap: wrap;
+        }
+
+        .bubble {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+        }
+
+        .bubble:nth-child(3n) { background: #e74c3c; }
+        .bubble:nth-child(5n) { background: #2ecc71; }
+        .bubble:nth-child(7n) { background: #f39c12; }
+        .bubble:nth-child(11n) { background: #9b59b6; }
+
+        .cluster-channels {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .channel-item {
+            padding: 0.8rem;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+
+        .channel-item:hover {
+            background: #f8f9fa;
+        }
+
+        .channel-item:last-child {
+            border-bottom: none;
+        }
+
+        .channel-title {
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+        }
+
+        .channel-description {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .channel-meta {
+            font-size: 0.8rem;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .channel-score {
+            background: #e8f4fd;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+
+        .unclassified-section {
+            background: white;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .unclassified-header {
+            background: #e74c3c;
+            color: white;
+            padding: 1.5rem;
+        }
+
+        .unclassified-channels {
+            padding: 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .clusters-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .content {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>YT-Classify Results</h1>
+        <div class="subtitle">YouTube Channel Classification Dashboard</div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="search">Search:</label>
+            <div class="search-box">
+                <input type="text" id="search" placeholder="Search channels by title or description...">
+            </div>
+        </div>
+        <div class="control-group">
+            <label for="sort">Sort by:</label>
+            <select id="sort">
+                <option value="size">Cluster Size</option>
+                <option value="name">Name</option>
+                <option value="umbrella">Umbrella</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="show-snippets"> Show Descriptions
+            </label>
+        </div>
+    </div>
+
+    <div id="loading" class="loading">
+        Loading classification results...
+    </div>
+
+    <div id="error" class="error hidden"></div>
+
+    <div id="content" class="content">
+        <div id="summary-stats" class="summary-stats">
+            <h2>Summary Statistics</h2>
+            <div class="stats-grid" id="stats-grid">
+                <!-- Stats will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <div id="umbrellas-container">
+            <!-- Umbrella sections will be populated by JavaScript -->
+        </div>
+
+        <div id="unclassified-section" class="unclassified-section hidden">
+            <div class="unclassified-header">
+                <h2>Unclassified Channels</h2>
+                <div id="unclassified-count"></div>
+            </div>
+            <div id="unclassified-channels" class="unclassified-channels">
+                <!-- Unclassified channels will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class YTClassifyViewer {
+            constructor() {
+                this.data = null;
+                this.filteredData = null;
+                this.searchTerm = '';
+                this.sortBy = 'size';
+                this.showSnippets = false;
+
+                this.init();
+            }
+
+            async init() {
+                try {
+                    console.log('Initializing YT-Classify Viewer...');
+                    await this.loadData();
+                    console.log('Data loaded successfully:', this.data);
+                    this.setupEventListeners();
+                    this.render();
+                    console.log('Dashboard rendered successfully');
+                } catch (error) {
+                    console.error('Error initializing dashboard:', error);
+                    this.showError('Failed to load data: ' + error.message);
+                }
+            }
+
+            async loadData() {
+                const response = await fetch('clusters.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                this.data = await response.json();
+                this.filteredData = { ...this.data };
+            }
+
+            setupEventListeners() {
+                const searchInput = document.getElementById('search');
+                const sortSelect = document.getElementById('sort');
+                const showSnippetsCheckbox = document.getElementById('show-snippets');
+
+                searchInput.addEventListener('input', (e) => {
+                    this.searchTerm = e.target.value.toLowerCase();
+                    this.applyFilters();
+                    this.render();
+                });
+
+                sortSelect.addEventListener('change', (e) => {
+                    this.sortBy = e.target.value;
+                    this.applyFilters();
+                    this.render();
+                });
+
+                showSnippetsCheckbox.addEventListener('change', (e) => {
+                    this.showSnippets = e.target.checked;
+                    this.render();
+                });
+
+                // Add click handlers for umbrella headers
+                document.addEventListener('click', (e) => {
+                    if (e.target.closest('.umbrella-header')) {
+                        const header = e.target.closest('.umbrella-header');
+                        const content = header.nextElementSibling;
+                        content.classList.toggle('hidden');
+                    }
+                });
+            }
+
+            applyFilters() {
+                if (!this.data) return;
+
+                // Apply search filter
+                if (this.searchTerm) {
+                    const filtered = {
+                        umbrellas: [],
+                        unclassified: []
+                    };
+
+                    // Filter umbrellas
+                    for (const umbrella of this.data.umbrellas) {
+                        const filteredClusters = [];
+
+                        for (const cluster of umbrella.clusters) {
+                            const filteredItems = cluster.items.filter(item =>
+                                item.title.toLowerCase().includes(this.searchTerm) ||
+                                item.description.toLowerCase().includes(this.searchTerm)
+                            );
+
+                            if (filteredItems.length > 0) {
+                                filteredClusters.push({
+                                    ...cluster,
+                                    items: filteredItems
+                                });
+                            }
+                        }
+
+                        if (filteredClusters.length > 0) {
+                            filtered.umbrellas.push({
+                                ...umbrella,
+                                clusters: filteredClusters
+                            });
+                        }
+                    }
+
+                    // Filter unclassified
+                    filtered.unclassified = this.data.unclassified.filter(item =>
+                        item.title.toLowerCase().includes(this.searchTerm) ||
+                        item.description.toLowerCase().includes(this.searchTerm)
+                    );
+
+                    this.filteredData = filtered;
+                } else {
+                    this.filteredData = { ...this.data };
+                }
+
+                // Apply sorting
+                if (this.sortBy === 'name') {
+                    this.filteredData.umbrellas.sort((a, b) => a.name.localeCompare(b.name));
+                } else if (this.sortBy === 'size') {
+                    this.filteredData.umbrellas.sort((a, b) => {
+                        const sizeA = a.clusters.reduce((sum, cluster) => sum + cluster.items.length, 0);
+                        const sizeB = b.clusters.reduce((sum, cluster) => sum + cluster.items.length, 0);
+                        return sizeB - sizeA;
+                    });
+                }
+            }
+
+            render() {
+                if (!this.data) return;
+
+                this.renderStats();
+                this.renderUmbrellas();
+                this.renderUnclassified();
+            }
+
+            renderStats() {
+                const statsGrid = document.getElementById('stats-grid');
+                const totalChannels = this.data.umbrellas.reduce((sum, umbrella) =>
+                    sum + umbrella.clusters.reduce((clusterSum, cluster) => clusterSum + cluster.items.length, 0), 0
+                );
+                const totalUnclassified = this.data.unclassified.length;
+                const coverage = totalChannels / (totalChannels + totalUnclassified);
+
+                statsGrid.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${totalChannels}</div>
+                        <div class="stat-label">Classified Channels</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${totalUnclassified}</div>
+                        <div class="stat-label">Unclassified</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${(coverage * 100).toFixed(1)}%</div>
+                        <div class="stat-label">Coverage</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${this.data.umbrellas.length}</div>
+                        <div class="stat-label">Umbrellas</div>
+                    </div>
+                `;
+            }
+
+            renderUmbrellas() {
+                const container = document.getElementById('umbrellas-container');
+
+                container.innerHTML = this.filteredData.umbrellas.map(umbrella => {
+                    const totalChannels = umbrella.clusters.reduce((sum, cluster) => sum + cluster.items.length, 0);
+                    const totalClusters = umbrella.clusters.length;
+
+                    return `
+                        <div class="umbrella-section">
+                            <div class="umbrella-header">
+                                <div>
+                                    <div class="umbrella-title">${umbrella.name}</div>
+                                    <div class="umbrella-meta">${totalChannels} channels • ${totalClusters} clusters</div>
+                                </div>
+                                <div>▼</div>
+                            </div>
+                            <div class="umbrella-content">
+                                <div class="clusters-grid">
+                                    ${umbrella.clusters.map(cluster => this.renderCluster(cluster)).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            renderCluster(cluster) {
+                const maxVideos = Math.max(...cluster.items.map(item => item.videoCount || 0));
+                const bubbles = cluster.items.map(item => {
+                    const size = Math.max(8, Math.min(20, 8 + Math.sqrt(item.videoCount || 0)));
+                    return `<div class="bubble" style="width: ${size}px; height: ${size}px;" title="${item.title} (${item.videoCount || 0} videos)"></div>`;
+                }).join('');
+
+                return `
+                    <div class="cluster-card">
+                        <div class="cluster-header">
+                            <div class="cluster-title">${cluster.label}</div>
+                            <div class="cluster-meta">
+                                <span>${cluster.items.length} channels</span>
+                                <span>Top terms: ${cluster.explain.topTerms.join(', ')}</span>
+                            </div>
+                            <div class="cluster-bubbles">
+                                ${bubbles}
+                            </div>
+                        </div>
+                        <div class="cluster-channels">
+                            ${cluster.items.map(item => this.renderChannel(item)).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderChannel(channel) {
+                const description = this.showSnippets && channel.description ?
+                    `<div class="channel-description">${this.truncateText(channel.description, 150)}</div>` : '';
+
+                return `
+                    <div class="channel-item">
+                        <div class="channel-title">${channel.title}</div>
+                        ${description}
+                        <div class="channel-meta">
+                            <span>${channel.videoCount || 0} videos</span>
+                            <span class="channel-score">sim: ${channel.score.sim.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderUnclassified() {
+                const section = document.getElementById('unclassified-section');
+                const container = document.getElementById('unclassified-channels');
+                const count = document.getElementById('unclassified-count');
+
+                if (this.filteredData.unclassified.length === 0) {
+                    section.classList.add('hidden');
+                    return;
+                }
+
+                section.classList.remove('hidden');
+                count.textContent = `${this.filteredData.unclassified.length} unclassified channels`;
+
+                container.innerHTML = this.filteredData.unclassified.map(channel => `
+                    <div class="channel-item">
+                        <div class="channel-title">${channel.title}</div>
+                        ${this.showSnippets && channel.description ? `<div class="channel-description">${this.truncateText(channel.description, 150)}</div>` : ''}
+                        <div class="channel-meta">
+                            <span>${channel.videoCount || 0} videos</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            truncateText(text, maxLength) {
+                if (text.length <= maxLength) return text;
+                return text.substring(0, maxLength) + '...';
+            }
+
+            showError(message) {
+                const loading = document.getElementById('loading');
+                const error = document.getElementById('error');
+                const content = document.getElementById('content');
+
+                loading.classList.add('hidden');
+                error.classList.remove('hidden');
+                error.textContent = message;
+                content.classList.add('hidden');
+            }
+        }
+
+        // Initialize the viewer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new YTClassifyViewer();
+        });
+    </script>
+</body>
+</html>
