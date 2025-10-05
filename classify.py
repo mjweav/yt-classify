@@ -187,26 +187,45 @@ class YTClassifier:
 
         return umbrella_vectors
 
-    def assign_to_umbrellas(self) -> Tuple[Dict[str, List], List]:
-        """Assign channels to umbrellas using prototype vectors."""
-        print("Assigning channels to umbrellas...")
+    def assign_to_umbrellas(self) -> Tuple[Dict[str, List], List, List]:
+        """Assign channels to umbrellas using prototype vectors with multi-stage filtering."""
+        print("Assigning channels to umbrellas (multi-stage)...")
 
         assignments = defaultdict(list)
-        unclassified = []
+        insufficient_content = []  # Channels with poor descriptions
+        unclassified = []  # Channels that don't match well
 
         for channel in self.channels:
-            # Prepare channel text (title ×2 + description)
-            title_tokens = self.processor.tokenize(channel['title'])
-            desc_tokens = self.processor.tokenize(channel['description'])
+            # Stage 1: Filter out channels with insufficient content
+            title = channel.get('title', '').strip()
+            description = channel.get('description', '').strip()
+
+            # Check if description is too short or generic
+            desc_too_short = len(description) < 20
+            desc_generic = description.lower() in ['...', 'none', 'no description', '']
+
+            if desc_too_short or desc_generic:
+                insufficient_content.append({
+                    **channel,
+                    'reason': 'insufficient_description'
+                })
+                continue
+
+            # Stage 2: Prepare channel text (title ×2 + description)
+            title_tokens = self.processor.tokenize(title)
+            desc_tokens = self.processor.tokenize(description)
             channel_tokens = title_tokens * 2 + desc_tokens
 
             if not channel_tokens:
-                unclassified.append(channel)
+                insufficient_content.append({
+                    **channel,
+                    'reason': 'no_tokenizable_content'
+                })
                 continue
 
             channel_vector = self.processor.compute_tfidf(channel_tokens)
 
-            # Find best matching umbrella
+            # Stage 3: Find best matching umbrella
             best_umbrella = None
             best_score = 0
             second_best_score = 0
@@ -225,23 +244,28 @@ class YTClassifier:
                 elif score > second_best_score:
                     second_best_score = score
 
-            # Apply more lenient thresholds for better coverage
+            # Stage 4: Apply stricter thresholds for better quality
             margin = best_score - second_best_score if second_best_score > 0 else best_score
 
-            # Lower similarity threshold and make margin requirement less strict
-            if best_score >= 0.08 and margin >= 0.01:  # More lenient thresholds
+            # Higher thresholds for better precision
+            if best_score >= 0.12 and margin >= 0.02:  # Stricter thresholds
                 assignments[best_umbrella].append({
                     **channel,
                     'similarity': best_score,
                     'margin': margin
                 })
             else:
-                unclassified.append(channel)
+                unclassified.append({
+                    **channel,
+                    'best_score': best_score,
+                    'reason': 'low_similarity_or_margin'
+                })
 
         print(f"Assigned {sum(len(chs) for chs in assignments.values())} channels to umbrellas")
-        print(f"Left {len(unclassified)} channels unclassified")
+        print(f"Insufficient content: {len(insufficient_content)} channels")
+        print(f"Low similarity: {len(unclassified)} channels")
 
-        return assignments, unclassified
+        return assignments, insufficient_content, unclassified
 
     def compute_centroid_reassignment(self, assignments: Dict[str, List], unclassified: List) -> Tuple[Dict[str, List], List]:
         """Reassign unclassified channels using computed centroids."""
@@ -715,17 +739,23 @@ class YTClassifier:
         # Compute umbrella vectors
         self.umbrella_vectors = self.compute_umbrella_vectors()
 
-        # Initial assignment
-        assignments, unclassified = self.assign_to_umbrellas()
+        # Initial assignment (now returns 3 values)
+        assignments, insufficient_content, unclassified = self.assign_to_umbrellas()
 
-        # Centroid reassignment
-        assignments, unclassified = self.compute_centroid_reassignment(assignments, unclassified)
+        # Combine insufficient content with unclassified for centroid reassignment
+        all_unclassified = insufficient_content + unclassified
+
+        # Centroid reassignment (only use channels that had sufficient content but low similarity)
+        assignments, still_unclassified = self.compute_centroid_reassignment(assignments, unclassified)
+
+        # Combine all unclassified channels
+        all_unclassified = insufficient_content + still_unclassified
 
         # Create sub-clusters
         umbrella_clusters = self.create_sub_clusters(assignments)
 
         # Generate outputs
-        output = self.generate_output(umbrella_clusters, unclassified)
+        output = self.generate_output(umbrella_clusters, all_unclassified)
 
         json_path = os.path.join(output_dir, 'clusters.json')
         csv_path = os.path.join(output_dir, 'clusters.csv')

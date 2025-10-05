@@ -209,8 +209,8 @@
         .bubble:nth-child(11n) { background: #9b59b6; }
 
         .cluster-channels {
-            max-height: 300px;
-            overflow-y: auto;
+            max-height: none;
+            overflow-y: visible;
             padding: 1rem;
         }
 
@@ -491,6 +491,12 @@
 
             render() {
                 if (!this.data) return;
+
+                // Hide loading indicator and show content
+                const loading = document.getElementById('loading');
+                const content = document.getElementById('content');
+                loading.classList.add('hidden');
+                content.classList.remove('hidden');
 
                 this.renderStats();
                 this.renderUmbrellas();

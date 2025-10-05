@@ -1,57 +1,55 @@
 # YT-Classify Report
 
 Total channels: 503
-Assigned: 148 (29.4%)
-Unclassified: 355 (70.6%)
+Assigned: 77 (15.3%)
+Unclassified: 426 (84.7%)
 
 ## Umbrella Summary
 
 | Umbrella | Channels | Clusters | Coverage |
 |----------|----------|----------|----------|
-| Aviation & Flight | 8 | 1 | 1.6%
-| Gaming | 3 | 1 | 0.6%
-| Arts & Design | 6 | 1 | 1.2%
-| Weather & Climate | 6 | 1 | 1.2%
-| Science & Technology | 10 | 1 | 2.0%
-| Comedy & Entertainment | 8 | 1 | 1.6%
-| Podcasts & Interviews | 6 | 1 | 1.2%
-| Music & Musicians | 20 | 1 | 4.0%
+| Aviation & Flight | 7 | 1 | 1.4%
+| Arts & Design | 4 | 1 | 0.8%
+| Weather & Climate | 5 | 1 | 1.0%
+| Comedy & Entertainment | 4 | 1 | 0.8%
 | Spirituality & Philosophy | 1 | 1 | 0.2%
-| Education & Learning | 7 | 1 | 1.4%
-| Food & Cooking | 2 | 1 | 0.4%
-| News & Commentary | 14 | 1 | 2.8%
-| DIY & Making | 10 | 1 | 2.0%
-| Home & Garden | 11 | 1 | 2.2%
-| Reading & Literature | 3 | 1 | 0.6%
-| Fashion & Beauty | 5 | 1 | 1.0%
+| Education & Learning | 2 | 1 | 0.4%
+| News & Commentary | 10 | 1 | 2.0%
+| Music & Musicians | 10 | 1 | 2.0%
 | Auto & Vehicles | 3 | 1 | 0.6%
-| Health & Wellness | 10 | 1 | 2.0%
-| Film & TV | 5 | 1 | 1.0%
-| Sports | 3 | 1 | 0.6%
+| DIY & Making | 5 | 1 | 1.0%
+| Health & Wellness | 9 | 1 | 1.8%
+| Film & TV | 3 | 1 | 0.6%
+| Fashion & Beauty | 2 | 1 | 0.4%
 | History & Culture | 2 | 1 | 0.4%
+| Science & Technology | 3 | 1 | 0.6%
 | Business & Finance | 1 | 1 | 0.2%
-| Pets & Animals | 3 | 1 | 0.6%
+| Gaming | 1 | 1 | 0.2%
+| Reading & Literature | 1 | 1 | 0.2%
+| Sports | 1 | 1 | 0.2%
+| Pets & Animals | 1 | 1 | 0.2%
+| Podcasts & Interviews | 1 | 1 | 0.2%
 | Travel & Places | 1 | 1 | 0.2%
 
 ## Largest Clusters
 
-- **Music Jazz** (Music & Musicians): 20 channels
-- **News Politics** (News & Commentary): 14 channels
-- **Garden Gardening** (Home & Garden): 11 channels
-- **Artificial Intelligence** (Science & Technology): 10 channels
-- **Construction Repair** (DIY & Making): 10 channels
-- **Health Zoe** (Health & Wellness): 10 channels
-- **Military Drone** (Aviation & Flight): 8 channels
-- **Comedy Show** (Comedy & Entertainment): 8 channels
-- **Affiliate University** (Education & Learning): 7 channels
-- **General** (Arts & Design): 6 channels
-- **Weather Severestudios** (Weather & Climate): 6 channels
-- **Audio Radio** (Podcasts & Interviews): 6 channels
-- **Other (Fashion & Beauty)** (Fashion & Beauty): 5 channels
-- **Other (Film & TV)** (Film & TV): 5 channels
-- **Other (Gaming)** (Gaming): 3 channels
-- **Other (Reading & Literature)** (Reading & Literature): 3 channels
+- **News Politics** (News & Commentary): 10 channels
+- **Music Jazz** (Music & Musicians): 10 channels
+- **Health Zoe** (Health & Wellness): 9 channels
+- **Drone Flight** (Aviation & Flight): 7 channels
+- **Other (Weather & Climate)** (Weather & Climate): 5 channels
+- **Other (DIY & Making)** (DIY & Making): 5 channels
+- **Other (Arts & Design)** (Arts & Design): 4 channels
+- **Other (Comedy & Entertainment)** (Comedy & Entertainment): 4 channels
 - **Other (Auto & Vehicles)** (Auto & Vehicles): 3 channels
-- **Other (Sports)** (Sports): 3 channels
-- **Other (Pets & Animals)** (Pets & Animals): 3 channels
-- **Other (Food & Cooking)** (Food & Cooking): 2 channels
+- **Other (Film & TV)** (Film & TV): 3 channels
+- **Other (Science & Technology)** (Science & Technology): 3 channels
+- **Other (Education & Learning)** (Education & Learning): 2 channels
+- **Other (Fashion & Beauty)** (Fashion & Beauty): 2 channels
+- **Other (History & Culture)** (History & Culture): 2 channels
+- **Other (Spirituality & Philosophy)** (Spirituality & Philosophy): 1 channels
+- **Other (Business & Finance)** (Business & Finance): 1 channels
+- **Other (Gaming)** (Gaming): 1 channels
+- **Other (Reading & Literature)** (Reading & Literature): 1 channels
+- **Other (Sports)** (Sports): 1 channels
+- **Other (Pets & Animals)** (Pets & Animals): 1 channels
