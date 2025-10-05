@@ -21,13 +21,16 @@ from typing import Dict, List, Tuple, Set, Optional
 CONFIG = {
     'TITLE_WEIGHT': 2.0,           # Title duplication factor
     'DESC_WEIGHT': 1.8,            # Description weight for umbrella assignment
-    'SIM_MIN': 0.20,               # Minimum similarity for centroid reassignment
-    'GAP_MIN': 0.05,               # Minimum gap for centroid reassignment
-    'MIN_CLUSTER_SIZE': 5,          # Minimum channels per umbrella for centroid
-    'MIN_SUB_CLUSTER_SIZE': 6,     # Minimum size before merging sub-clusters
-    'MAX_SUB_CLUSTERS': 6,         # Maximum sub-clusters per umbrella
+    'SIM_MIN': 0.08,               # Minimum similarity for initial assignment (lowered)
+    'CENTROID_SIM_MIN': 0.12,      # Minimum similarity for centroid reassignment (lowered)
+    'GAP_MIN': 0.02,               # Minimum gap for centroid reassignment (lowered)
+    'MIN_CLUSTER_SIZE': 3,          # Minimum channels per umbrella for centroid (lowered)
+    'MIN_SUB_CLUSTER_SIZE': 4,      # Minimum size before merging sub-clusters (lowered)
+    'MAX_SUB_CLUSTERS': 8,         # Maximum sub-clusters per umbrella (increased)
     'RANDOM_SEED': 42,             # For reproducible results
     'TOP_TERMS_COUNT': 3,          # Terms to show in explanations
+    'MAX_ITERATIONS': 15,          # Maximum clustering iterations (increased)
+    'FALLBACK_THRESHOLD': 0.05,    # Fallback similarity threshold (very low)
 }
 
 # Global stopwords (minimal set for portability)
@@ -295,11 +298,11 @@ class YTClassifier:
                 elif score > second_best_score:
                     second_best_score = score
 
-            # Stage 5: Apply stricter thresholds for better quality
+            # Stage 5: Apply lowered thresholds for better coverage
             margin = best_score - second_best_score if second_best_score > 0 else best_score
 
-            # Higher thresholds for better precision
-            if best_score >= 0.12 and margin >= 0.02:  # Stricter thresholds
+            # Lower thresholds for better coverage
+            if best_score >= self.config['SIM_MIN'] and margin >= self.config['GAP_MIN']:
                 assignments[best_umbrella].append({
                     **channel,
                     'similarity': best_score,
@@ -364,8 +367,8 @@ class YTClassifier:
             # Apply more lenient centroid thresholds for better coverage
             margin = best_score - second_best_score if second_best_score > 0 else best_score
 
-            # Lower centroid reassignment thresholds
-            if best_score >= 0.15 and margin >= 0.02:  # More lenient for reassignment
+            # Use configured centroid threshold
+            if best_score >= self.config['CENTROID_SIM_MIN'] and margin >= self.config['GAP_MIN']:
                 new_assignments[best_umbrella].append({
                     **channel,
                     'similarity': best_score,
@@ -376,6 +379,67 @@ class YTClassifier:
 
         print(f"Reassigned {len(unclassified) - len(still_unclassified)} channels using centroids")
         print(f"Final unclassified: {len(still_unclassified)}")
+
+        return new_assignments, still_unclassified
+
+    def fallback_classification(self, assignments: Dict[str, List], unclassified: List) -> Tuple[Dict[str, List], List]:
+        """Fallback classification using very low thresholds and alternative strategies."""
+        print("Running fallback classification for remaining channels...")
+
+        if not unclassified:
+            return assignments, []
+
+        # For fallback, use any umbrella that has at least 1 channel
+        centroids = {}
+        for umbrella, channels in assignments.items():
+            if len(channels) >= 1:  # Much lower requirement for fallback
+                centroid = self._compute_centroid(channels)
+                if centroid:
+                    centroids[umbrella] = centroid
+
+        if not centroids:
+            print("No centroids available for fallback classification")
+            return assignments, unclassified
+
+        new_assignments = assignments.copy()
+        still_unclassified = []
+
+        for channel in unclassified:
+            title_tokens = self.processor.tokenize(channel['title'])
+            desc_tokens = self.processor.tokenize(channel['description'])
+            channel_tokens = title_tokens * 2 + desc_tokens
+
+            if not channel_tokens:
+                still_unclassified.append(channel)
+                continue
+
+            channel_vector = self.processor.compute_tfidf(channel_tokens)
+
+            # Find best centroid with very low threshold
+            best_umbrella = None
+            best_score = 0
+
+            for umbrella, centroid in centroids.items():
+                score = self._cosine_similarity(channel_vector, centroid)
+
+                if score > best_score:
+                    best_score = score
+                    best_umbrella = umbrella
+
+            # Very low threshold for fallback - accept almost any match
+            if best_score >= self.config['FALLBACK_THRESHOLD']:
+                new_assignments[best_umbrella].append({
+                    **channel,
+                    'similarity': best_score,
+                    'margin': 0,  # No margin requirement for fallback
+                    'fallback': True
+                })
+                print(f"Fallback classified: {channel['title']} -> {best_umbrella} (score: {best_score:.3f})")
+            else:
+                still_unclassified.append(channel)
+
+        fallback_count = len(unclassified) - len(still_unclassified)
+        print(f"Fallback classification: {fallback_count} channels classified, {len(still_unclassified)} still unclassified")
 
         return new_assignments, still_unclassified
 
@@ -800,8 +864,11 @@ class YTClassifier:
         # Centroid reassignment (only use channels that had sufficient content but low similarity)
         assignments, still_unclassified = self.compute_centroid_reassignment(assignments, unclassified)
 
+        # Fallback classification for remaining unclassified channels
+        assignments, fallback_unclassified = self.fallback_classification(assignments, still_unclassified)
+
         # Combine all unclassified channels
-        all_unclassified = insufficient_content + still_unclassified
+        all_unclassified = insufficient_content + fallback_unclassified
 
         # Create sub-clusters
         umbrella_clusters = self.create_sub_clusters(assignments)

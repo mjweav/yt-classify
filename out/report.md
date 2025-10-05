@@ -1,53 +1,56 @@
 # YT-Classify Report
 
 Total channels: 503
-Assigned: 89 (17.7%)
-Unclassified: 414 (82.3%)
+Assigned: 375 (74.6%)
+Unclassified: 117 (25.4%)
 
 ## Umbrella Summary
 
 | Umbrella | Channels | Clusters | Coverage |
 |----------|----------|----------|----------|
-| Aviation & Flight | 6 | 1 | 1.2%
-| Arts & Design | 10 | 1 | 2.0%
-| Weather & Climate | 6 | 1 | 1.2%
-| Comedy & Entertainment | 5 | 1 | 1.0%
-| Podcasts & Interviews | 3 | 1 | 0.6%
-| News & Commentary | 14 | 1 | 2.8%
-| Food & Cooking | 2 | 1 | 0.4%
-| Music & Musicians | 13 | 1 | 2.6%
-| Auto & Vehicles | 2 | 1 | 0.4%
-| DIY & Making | 4 | 1 | 0.8%
-| Health & Wellness | 6 | 1 | 1.2%
-| Film & TV | 2 | 1 | 0.4%
-| Home & Garden | 3 | 1 | 0.6%
-| Fashion & Beauty | 3 | 1 | 0.6%
-| Science & Technology | 3 | 1 | 0.6%
-| Business & Finance | 2 | 1 | 0.4%
-| Education & Learning | 2 | 1 | 0.4%
-| Reading & Literature | 1 | 1 | 0.2%
-| Sports | 1 | 1 | 0.2%
-| Pets & Animals | 1 | 1 | 0.2%
+| Aviation & Flight | 9 | 1 | 1.8%
+| Arts & Design | 33 | 1 | 6.6%
+| Weather & Climate | 10 | 1 | 2.0%
+| Science & Technology | 31 | 1 | 6.2%
+| Podcasts & Interviews | 60 | 3 | 11.9%
+| Comedy & Entertainment | 9 | 1 | 1.8%
+| Food & Cooking | 11 | 1 | 2.2%
+| News & Commentary | 42 | 1 | 8.3%
+| Travel & Places | 10 | 1 | 2.0%
+| Music & Musicians | 40 | 1 | 8.0%
+| Education & Learning | 4 | 1 | 0.8%
+| Auto & Vehicles | 8 | 1 | 1.6%
+| DIY & Making | 14 | 1 | 2.8%
+| Health & Wellness | 15 | 1 | 3.0%
+| Film & TV | 11 | 1 | 2.2%
+| Sports | 10 | 1 | 2.0%
+| Home & Garden | 11 | 1 | 2.2%
+| Fashion & Beauty | 18 | 1 | 3.6%
+| Reading & Literature | 9 | 1 | 1.8%
+| Business & Finance | 4 | 1 | 0.8%
+| Pets & Animals | 4 | 1 | 0.8%
+| Gaming | 5 | 1 | 1.0%
+| History & Culture | 7 | 1 | 1.4%
 
 ## Largest Clusters
 
-- **News Analysis** (News & Commentary): 14 channels
-- **Music Young** (Music & Musicians): 13 channels
-- **Photography Photographer** (Arts & Design): 10 channels
-- **Drone Flight** (Aviation & Flight): 6 channels
-- **Weather Spaceweathernews** (Weather & Climate): 6 channels
-- **Health Zoe** (Health & Wellness): 6 channels
-- **Other (Comedy & Entertainment)** (Comedy & Entertainment): 5 channels
-- **Other (DIY & Making)** (DIY & Making): 4 channels
-- **Other (Podcasts & Interviews)** (Podcasts & Interviews): 3 channels
-- **Other (Home & Garden)** (Home & Garden): 3 channels
-- **Other (Fashion & Beauty)** (Fashion & Beauty): 3 channels
-- **Other (Science & Technology)** (Science & Technology): 3 channels
-- **Other (Food & Cooking)** (Food & Cooking): 2 channels
-- **Other (Auto & Vehicles)** (Auto & Vehicles): 2 channels
-- **Other (Film & TV)** (Film & TV): 2 channels
-- **Other (Business & Finance)** (Business & Finance): 2 channels
-- **Other (Education & Learning)** (Education & Learning): 2 channels
-- **Other (Reading & Literature)** (Reading & Literature): 1 channels
-- **Other (Sports)** (Sports): 1 channels
-- **Other (Pets & Animals)** (Pets & Animals): 1 channels
+- **News Daily** (News & Commentary): 42 channels
+- **Music Bass** (Music & Musicians): 40 channels
+- **Audio Business** (Podcasts & Interviews): 37 channels
+- **Photography Pro** (Arts & Design): 33 channels
+- **Science Art** (Science & Technology): 31 channels
+- **Gardening Garden** (Fashion & Beauty): 18 channels
+- **Health Medical** (Health & Wellness): 15 channels
+- **Construction Products** (DIY & Making): 14 channels
+- **Love Rving** (Podcasts & Interviews): 12 channels
+- **Money Make** (Podcasts & Interviews): 11 channels
+- **Chris Meat** (Food & Cooking): 11 channels
+- **Film Sports** (Film & TV): 11 channels
+- **General** (Home & Garden): 11 channels
+- **Weather Live** (Weather & Climate): 10 channels
+- **Movies Polyphia** (Travel & Places): 10 channels
+- **Training Red** (Sports): 10 channels
+- **Drone Flight** (Aviation & Flight): 9 channels
+- **Comedy Jimmy** (Comedy & Entertainment): 9 channels
+- **Publishing Self** (Reading & Literature): 9 channels
+- **Road Project** (Auto & Vehicles): 8 channels
