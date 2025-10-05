@@ -123,53 +123,159 @@ class TopicExtractor:
 
         return text
 
-    def extract_keywords(self, text: str, max_keywords: int = 5) -> List[str]:
-        """Extract meaningful keywords using multiple techniques."""
+    def extract_two_term_topic(self, text: str) -> Tuple[str, str, float]:
+        """Extract primary topic and sub-topic with enhanced confidence scoring."""
         if not text:
-            return []
+            return "unknown", "general", 0.0
 
-        # Method 1: Topic keyword matching
+        # Enhanced preprocessing for better context
+        sentences = re.split(r'[.!?]+', text.strip())
+        sentences = [s.strip() for s in sentences if s.strip()]
+
+        if not sentences:
+            return "unknown", "general", 0.0
+
+        # Method 1: Enhanced first sentence analysis (×3 weighting)
+        first_sentence = sentences[0].lower()
+        first_words = [word for word in first_sentence.split() if len(word) > 3 and word not in self.stopwords]
+
+        # Method 2: Title extraction if available (×2 weighting)
+        title = ""
+        if " - " in text:
+            title = text.split(" - ")[0].strip()
+        elif ": " in text:
+            title = text.split(": ")[0].strip()
+
+        # Method 3: Topic keyword matching with enhanced context
         words = text.lower().split()
-        topic_scores = defaultdict(int)
+        topic_scores = defaultdict(float)
+        context_words = defaultdict(set)
+        topic_positions = defaultdict(list)
 
-        for word in words:
+        for i, word in enumerate(words):
             if word in self.stopwords or len(word) < 3:
                 continue
 
-            # Score based on topic keywords
+            # Score based on topic keywords with position weighting
             for topic, keywords in self.topic_keywords.items():
                 if word in keywords:
-                    topic_scores[topic] += 1
+                    # Base score for keyword match
+                    score = 1.0
 
-        # Get top topics
-        top_topics = sorted(topic_scores.items(), key=lambda x: x[1], reverse=True)
-        if top_topics:
-            return [top_topics[0][0]]
+                    # Position bonus: earlier in text = higher score
+                    position_bonus = max(0, 1.0 - (i / len(words)) * 0.5)
+                    score += position_bonus
 
-        # Method 2: TF-IDF keyword extraction
-        sentences = re.split(r'[.!?]+', text)
-        sentences = [s.strip() for s in sentences if s.strip()]
+                    # First sentence bonus
+                    if i < len(sentences[0].split()):
+                        score += 1.0
 
-        all_words = []
-        for sentence in sentences:
-            # Weight first sentence more heavily
-            weight = 2.0 if sentence == sentences[0] else 1.0
-            sentence_words = [word for word in sentence.split() if len(word) > 3 and word not in self.stopwords]
+                    topic_scores[topic] += score
+                    topic_positions[topic].append(i)
 
-            # Apply weighting
-            if weight > 1.0:
-                sentence_words *= int(weight)
+                    # Collect surrounding words for context (wider window)
+                    start_idx = max(0, i-3)
+                    end_idx = min(len(words), i+4)
+                    context_words[topic].update(words[start_idx:end_idx])
 
-            all_words.extend(sentence_words)
+        # Get top topic with enhanced scoring
+        if topic_scores:
+            # Sort by total score and position centrality
+            scored_topics = []
+            for topic, score in topic_scores.items():
+                # Calculate position centrality (prefer middle positions)
+                positions = topic_positions[topic]
+                if positions:
+                    centrality = 1.0 - abs(sum(positions) / len(positions) - len(words) / 2) / (len(words) / 2)
+                    score += centrality * 0.5
 
-        if not all_words:
-            return []
+                scored_topics.append((topic, score))
 
-        # Get most frequent meaningful words
-        word_freq = Counter(all_words)
-        keywords = [word for word, freq in word_freq.most_common(max_keywords) if freq >= 2]
+            primary_topic = max(scored_topics, key=lambda x: x[1])[0]
 
-        return keywords if keywords else [word_freq.most_common(1)[0][0]]
+            # Enhanced sub-topic extraction
+            context = ' '.join(context_words[primary_topic])
+            sub_topic_candidates = []
+
+            # Filter out proper names, generic terms, and topic keywords
+            proper_names = self._extract_proper_names(text)
+            generic_terms = {'general', 'welcome', 'channel', 'video', 'videos', 'content', 'check', 'thanks', 'please'}
+
+            for word in context.split():
+                word = word.strip()
+                if (len(word) > 3 and
+                    word not in self.stopwords and
+                    word not in self.topic_keywords[primary_topic] and
+                    word.lower() not in proper_names and
+                    word.lower() not in generic_terms and
+                    not word.isdigit()):
+                    sub_topic_candidates.append(word)
+
+            if sub_topic_candidates:
+                # Use most frequent meaningful word as sub-topic
+                sub_topic_freq = Counter(sub_topic_candidates)
+                sub_topic = sub_topic_freq.most_common(1)[0][0]
+            else:
+                # Try first sentence for sub-topic
+                if len(first_words) > 1:
+                    sub_topic = first_words[1]
+                else:
+                    sub_topic = "content"
+
+            # Enhanced confidence calculation
+            base_score = topic_scores[primary_topic]
+            max_possible_score = len(self.topic_keywords[primary_topic]) * 2.0  # Account for bonuses
+
+            # Multi-factor confidence
+            keyword_confidence = min(1.0, base_score / max_possible_score)
+            context_confidence = min(1.0, len(sub_topic_candidates) / 5.0)  # More context words = higher confidence
+            length_confidence = min(1.0, len(text) / 200.0)  # Longer descriptions = higher confidence
+
+            confidence = (keyword_confidence * 0.5 + context_confidence * 0.3 + length_confidence * 0.2)
+
+            return primary_topic, sub_topic, confidence
+
+        # Enhanced fallback: Extract from first sentence with better logic
+        if first_words:
+            # Try to find a meaningful primary topic from first words
+            for word in first_words:
+                if word in self.topic_keywords:
+                    primary_topic = word
+                    sub_topic = first_words[1] if len(first_words) > 1 else "content"
+                    return primary_topic, sub_topic, 0.6
+
+            # If no topic keywords found, use first meaningful word
+            primary_topic = first_words[0] if first_words else "unknown"
+            sub_topic = first_words[1] if len(first_words) > 1 else "content"
+            return primary_topic, sub_topic, 0.4
+
+        return "unknown", "content", 0.0
+
+    def _extract_proper_names(self, text: str) -> Set[str]:
+        """Extract proper names from text to filter them out."""
+        proper_names = set()
+
+        # Look for capitalized words (likely proper names)
+        words = text.split()
+        for i, word in enumerate(words):
+            if (word and word[0].isupper() and
+                len(word) > 2 and
+                not word.endswith('s') and  # Avoid plurals
+                i > 0 and words[i-1] not in {'the', 'a', 'an'}):  # Not preceded by articles
+                proper_names.add(word.lower())
+
+        # Also check for words that appear to be names (common patterns)
+        name_patterns = [
+            r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b',  # First Last
+            r'\b[A-Z][a-z]+-[A-Z][a-z]+\b',    # First-Last
+        ]
+
+        for pattern in name_patterns:
+            matches = re.findall(pattern, text)
+            for match in matches:
+                proper_names.update(match.lower().split())
+
+        return proper_names
 
     def extract_topic_simple(self, channel: Dict) -> str:
         """Simple keyword-based topic extraction."""
@@ -183,10 +289,10 @@ class TopicExtractor:
         if not clean_text:
             return "unknown"
 
-        # Extract keywords
-        keywords = self.extract_keywords(clean_text)
+        # Extract two-term topic
+        primary_topic, sub_topic, confidence = self.extract_two_term_topic(clean_text)
 
-        return keywords[0] if keywords else "unknown"
+        return primary_topic
 
     def extract_topic_semantic(self, channel: Dict) -> str:
         """Semantic topic extraction using sentence transformers."""
@@ -261,7 +367,7 @@ class TopicExtractor:
 
     def run_experiment(self, input_file: str, output_file: str = 'topic_analysis.json'):
         """Run topic extraction experiment."""
-        print("Starting topic extraction experiment...")
+        print("Starting enhanced topic extraction experiment...")
 
         # Load channels
         self.load_channels(input_file)
@@ -272,15 +378,22 @@ class TopicExtractor:
             if i % 100 == 0:
                 print(f"Processing channel {i+1}/{len(self.channels)}")
 
-            # Try semantic extraction first, fall back to simple
-            topic = self.extract_topic_semantic(channel)
+            # Use enhanced two-term extraction
+            title = channel.get('title', '')
+            description = channel.get('description', '')
+            combined_text = f"{title} {description}"
+            clean_text = self.preprocess_text(combined_text)
+
+            primary_topic, sub_topic, confidence = self.extract_two_term_topic(clean_text)
 
             result = {
                 'id': channel['id'],
                 'title': channel['title'],
                 'description': channel['description'],
-                'extracted_topic': topic,
-                'confidence': 'high' if topic != 'unknown' else 'low'
+                'primary_topic': primary_topic,
+                'sub_topic': sub_topic,
+                'confidence_score': confidence,
+                'confidence': 'high' if confidence > 0.7 else 'medium' if confidence > 0.4 else 'low'
             }
 
             results.append(result)
@@ -294,9 +407,9 @@ class TopicExtractor:
 
         # Also save as CSV for easier review
         csv_file = output_file.replace('.json', '.csv')
-        self.save_csv_results(results, csv_file)
+        self.save_enhanced_csv_results(results, csv_file)
 
-        print(f"Topic extraction complete! Results saved to {output_file} and {csv_file}")
+        print(f"Enhanced topic extraction complete! Results saved to {output_file} and {csv_file}")
         return results
 
     def save_csv_results(self, results: List[Dict], csv_file: str):
@@ -319,9 +432,32 @@ class TopicExtractor:
 
         print(f"CSV results saved to {csv_file}")
 
+    def save_enhanced_csv_results(self, results: List[Dict], csv_file: str):
+        """Save enhanced results as CSV with two-term topics and confidence scores."""
+        import csv
+
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+
+            # Write header
+            writer.writerow(['channel_name', 'primary_topic', 'sub_topic', 'confidence_score', 'confidence_level', 'description'])
+
+            # Write data rows
+            for result in results:
+                writer.writerow([
+                    result.get('title', ''),
+                    result.get('primary_topic', ''),
+                    result.get('sub_topic', ''),
+                    f"{result.get('confidence_score', 0):.3f}",
+                    result.get('confidence', ''),
+                    result.get('description', '')
+                ])
+
+        print(f"Enhanced CSV results saved to {csv_file}")
+
     def analyze_results(self, results: List[Dict]) -> Dict:
         """Analyze the topic extraction results."""
-        topic_counts = Counter(result['extracted_topic'] for result in results)
+        topic_counts = Counter(result['primary_topic'] for result in results)
 
         analysis = {
             'total_channels': len(results),
