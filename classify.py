@@ -60,13 +60,33 @@ class TextProcessor:
         self.documents = []
 
     def tokenize(self, text: str) -> List[str]:
-        """Tokenize text into lowercase alphanumeric tokens."""
+        """Tokenize text with advanced preprocessing."""
         if not text:
             return []
-        # Remove URLs, punctuation, and convert to lowercase
+
+        # Remove URLs and emails
         text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
+        text = re.sub(r'\S+@\S+', '', text)
+
+        # Convert to lowercase and remove punctuation
         text = re.sub(r'[^\w\s]', ' ', text.lower())
-        tokens = [word for word in text.split() if len(word) > 2 and word not in STOPWORDS]
+
+        # Split into sentences for better context
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+
+        tokens = []
+        for sentence in sentences:
+            # Weight first sentence more heavily (usually contains main topic)
+            weight = 1.5 if sentence == sentences[0] else 1.0
+            sentence_tokens = [word for word in sentence.split() if len(word) > 2 and word not in STOPWORDS]
+
+            # Apply weighting by duplicating important tokens
+            if weight > 1.0:
+                sentence_tokens *= int(weight)
+
+            tokens.extend(sentence_tokens)
+
         return tokens
 
     def add_document(self, tokens: List[str]):
@@ -157,7 +177,7 @@ class YTClassifier:
             "Business & Finance": "business finance money investment economy market stock trade corporation company entrepreneur startup venture capital banking financial analysis budget revenue profit growth strategy management leadership mhfin entertaining finance bitcoin inflation",
             "Music & Musicians": "music song artist musician band album concert performance singer songwriter guitar piano drums jazz rock classical pop hip hop orchestra symphony melody harmony rhythm composition coffee relaxing jazz rmns channel music encoded",
             "Film & TV": "movie film television cinema series show documentary entertainment director producer actor actress hollywood blockbuster streaming netflix disney cinema theater screenplay cinematography dream theater kinocheck movie destination",
-            "Gaming": "game gaming video game player console online multiplayer esports tournament league competitive play strategy adventure action role playing shooter racing simulation virtual reality fortnite minecraft roblox league of legends",
+            "Gaming": "game gaming video game player console online multiplayer esports tournament league competitive play strategy adventure action role playing shooter racing simulation virtual reality fortnite minecraft roblox league of legends call of duty fifa battlefield",
             "Sports": "sport athletics game competition team player tournament league championship coach training fitness exercise olympics basketball football soccer baseball tennis golf swimming",
             "Health & Wellness": "health wellness fitness nutrition medical exercise lifestyle doctor physician hospital treatment therapy mental health wellbeing meditation yoga mindfulness diet nutritionist physical activity dr sten ekberg natural health olympic decathlete",
             "Food & Cooking": "food cooking recipe cuisine kitchen meal ingredient nutrition restaurant chef baking grilling culinary technique flavor taste preparation ingredient combination traditional authentic",
@@ -171,9 +191,9 @@ class YTClassifier:
             "Weather & Climate": "weather climate forecast storm temperature meteorology environment atmosphere precipitation rainfall snow hurricane tornado climate change global warming meteorologist radar satellite ryan hall severe weather broadcaster",
             "History & Culture": "history culture tradition heritage society civilization ancient medieval modern archaeology anthropology sociology customs folklore language ethnicity diversity civilization evolution",
             "Reading & Literature": "book reading literature novel story author writing fiction non fiction biography memoir poetry prose library bookstore publisher literary criticism analysis interpretation narrative usa today bestselling author thrillers",
-            "Spirituality & Philosophy": "spirituality philosophy religion faith belief meditation mindfulness consciousness wisdom ethics morality existence meaning purpose soul spirit divine sacred contemplation christian jesus bible worship prayer",
+            "Spirituality & Philosophy": "spirituality philosophy religion faith belief meditation mindfulness consciousness wisdom ethics morality existence meaning purpose soul spirit divine sacred contemplation christian jesus bible worship prayer god holy scripture theology",
             "Fashion & Beauty": "fashion beauty style clothing makeup cosmetic trend design model runway boutique glamour aesthetic skincare hairstyle beauty salon cosmetic surgery fashion show designer garden style gardening skills nursery owner",
-            "Pets & Animals": "pet animal dog cat bird fish wildlife nature care veterinary medicine adoption training behavior habitat ecosystem conservation zoo aquarium wildlife sanctuary domestic animal rescue animal care",
+            "Pets & Animals": "pet animal dog cat bird fish wildlife nature care veterinary medicine adoption training behavior habitat ecosystem conservation zoo aquarium wildlife sanctuary domestic animal rescue animal care puppy kitten hamster rabbit",
             "Comedy & Entertainment": "comedy humor funny entertainment joke laugh comedy show standup comedian sketch satire parody hilarious witty amusing entertaining performance audience laughter weird al yankovic comedy dynamics stand-up comedy",
             "Podcasts & Interviews": "podcast interview discussion conversation talk show host guest audio radio broadcast dialogue debate panel roundtable monologue storytelling narrative journalism documentary times radio subscribe today"
         }
@@ -187,9 +207,35 @@ class YTClassifier:
 
         return umbrella_vectors
 
+    def _extract_primary_topic(self, title: str, description: str) -> str:
+        """Extract primary topic from multi-topic descriptions."""
+        # Split description into sentences
+        sentences = re.split(r'[.!?]+', description)
+        sentences = [s.strip() for s in sentences if s.strip()]
+
+        if not sentences:
+            return description
+
+        # First sentence usually contains the main topic
+        primary_topic = sentences[0]
+
+        # Look for topic indicators in first few sentences
+        topic_indicators = [
+            'welcome to', 'this channel', 'i am', 'we are', 'about',
+            'focus on', 'specializes in', 'dedicated to'
+        ]
+
+        for sentence in sentences[:3]:  # Check first 3 sentences
+            sentence_lower = sentence.lower()
+            if any(indicator in sentence_lower for indicator in topic_indicators):
+                primary_topic = sentence
+                break
+
+        return primary_topic
+
     def assign_to_umbrellas(self) -> Tuple[Dict[str, List], List, List]:
         """Assign channels to umbrellas using prototype vectors with multi-stage filtering."""
-        print("Assigning channels to umbrellas (multi-stage)...")
+        print("Assigning channels to umbrellas (multi-stage with topic separation)...")
 
         assignments = defaultdict(list)
         insufficient_content = []  # Channels with poor descriptions
@@ -211,10 +257,15 @@ class YTClassifier:
                 })
                 continue
 
-            # Stage 2: Prepare channel text (title ×2 + description)
+            # Stage 2: Extract primary topic from potentially multi-topic descriptions
+            primary_topic = self._extract_primary_topic(title, description)
+
+            # Stage 3: Prepare channel text with focus on primary topic
             title_tokens = self.processor.tokenize(title)
-            desc_tokens = self.processor.tokenize(description)
-            channel_tokens = title_tokens * 2 + desc_tokens
+            primary_tokens = self.processor.tokenize(primary_topic)
+
+            # Weight primary topic more heavily (×3) vs full description (×1)
+            channel_tokens = title_tokens * 2 + primary_tokens * 3
 
             if not channel_tokens:
                 insufficient_content.append({
@@ -225,7 +276,7 @@ class YTClassifier:
 
             channel_vector = self.processor.compute_tfidf(channel_tokens)
 
-            # Stage 3: Find best matching umbrella
+            # Stage 4: Find best matching umbrella
             best_umbrella = None
             best_score = 0
             second_best_score = 0
@@ -244,7 +295,7 @@ class YTClassifier:
                 elif score > second_best_score:
                     second_best_score = score
 
-            # Stage 4: Apply stricter thresholds for better quality
+            # Stage 5: Apply stricter thresholds for better quality
             margin = best_score - second_best_score if second_best_score > 0 else best_score
 
             # Higher thresholds for better precision
@@ -252,7 +303,8 @@ class YTClassifier:
                 assignments[best_umbrella].append({
                     **channel,
                     'similarity': best_score,
-                    'margin': margin
+                    'margin': margin,
+                    'primary_topic': primary_topic
                 })
             else:
                 unclassified.append({
